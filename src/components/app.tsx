@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react";
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 type Gasto = {
   descricao: string;
@@ -11,53 +12,61 @@ type GastosPorDia = Record<string, Gasto[]>;
 
 const App: React.FC = () => {
   const [gastos, setGastos] = useState<GastosPorDia>({
-    "segunda-feira": [],
-    "terça-feira": [],
-    "quarta-feira": [],
-    "quinta-feira": [],
-    "sexta-feira": [],
-    "sábado": [],
-    "domingo": [],
+    "Total": [],
   });
 
-  const [diaDaSemana, setDiaDaSemana] = useState<string>("segunda-feira");
+  const [currentTab, setCurrentTab] = useState<string>("Total");
+  const [initialBudget, setInitialBudget] = useState<number | null>(null);
+  const [showInitialBudgetModal, setShowInitialBudgetModal] = useState(true);
 
   useEffect(() => {
     const data = localStorage.getItem("gastos");
     if (data) {
       setGastos(JSON.parse(data) as GastosPorDia);
     }
+
+    const budgetData = localStorage.getItem("initialBudget");
+    if (budgetData) {
+      setInitialBudget(Number(budgetData));
+    } else {
+      setShowInitialBudgetModal(true);
+    }
   }, []);
 
   const adicionarGasto = (descricao: string, valor: number) => {
-    setGastos((prevGastos) => {
-      return {
-        ...prevGastos,
-        [diaDaSemana]: [...prevGastos[diaDaSemana], { descricao, valor }],
-      };
-    });
+    if (initialBudget !== null && valor <= initialBudget) {
+      setGastos((prevGastos) => {
+        return {
+          ...prevGastos,
+          [currentTab]: [...prevGastos[currentTab], { descricao, valor }],
+        };
+      });
+      setInitialBudget((prevBudget) => prevBudget! - valor);
+    } else {
+      alert("Saldo insuficiente!");
+    }
   };
 
-  const exibirGastos = (dia: string) => {
+  const exibirGastos = (tab: string) => {
     return (
       <ul>
-        {gastos[dia].map((gasto, index) => (
+        {gastos[tab].map((gasto, index) => (
           <li key={index}>
-            {gasto.descricao} - {gasto.valor}
-            <button onClick={() => deletarGasto(dia, index)}>Deletar</button>
+            {gasto.descricao} - {gasto.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            <button onClick={() => deletarGasto(tab, index)}>Deletar</button>
           </li>
         ))}
       </ul>
     );
   };
 
-  const deletarGasto = (dia: string, index: number) => {
+  const deletarGasto = (tab: string, index: number) => {
     setGastos((prevGastos) => {
-      const updatedGastos = [...prevGastos[dia]];
+      const updatedGastos = [...prevGastos[tab]];
       updatedGastos.splice(index, 1);
       return {
         ...prevGastos,
-        [dia]: updatedGastos,
+        [tab]: updatedGastos,
       };
     });
   };
@@ -66,9 +75,24 @@ const App: React.FC = () => {
     localStorage.setItem("gastos", JSON.stringify(gastos));
   }, [gastos]);
 
+  const handleSaveInitialBudget = (budget: number) => {
+    localStorage.setItem("initialBudget", budget.toString());
+    setInitialBudget(budget);
+    setShowInitialBudgetModal(false);
+  };
+
   return (
-    <div>
+    <div className="container text-center">
       <h1>Controlador financeiro</h1>
+      <div
+        className={`modal fade${showInitialBudgetModal ? " show" : ""}`}
+        tabIndex={-1}
+        role="dialog"
+        style={{ display: showInitialBudgetModal ? "block" : "none" }}
+      >
+        {/* Modal content goes here */}
+      </div>
+
       <form
         onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
           e.preventDefault();
@@ -77,26 +101,21 @@ const App: React.FC = () => {
           form.reset();
         }}
       >
-        <select name="descricao">
-          <option value="Contas">Contas</option>
-          <option value="Alimentação">Alimentação</option>
-          <option value="Lazer">Lazer</option>
-          <option value="Farmácia">Farmácia</option>
-          <option value="Outros">Outros</option>
-        </select>
-        <input type="number" placeholder="Valor" name="valor" />
-        <input type="submit" value="Adicionar gasto" />
+        {/* Form content goes here */}
       </form>
-      <ul className="tabs">
-        {Object.keys(gastos).map((dia) => (
-          <li key={dia}>
-            <button onClick={() => setDiaDaSemana(dia)}>
-              {dia.charAt(0).toUpperCase() + dia.slice(1)}
-            </button>
-          </li>
-        ))}
+      <ul className="nav nav-tabs">
+        <li className="nav-item">
+          <button
+            className={`nav-link${currentTab === "Total" ? ' active' : ''}`}
+            onClick={() => setCurrentTab("Total")}
+          >
+            Total
+          </button>
+        </li>
       </ul>
-      <div className="content">{exibirGastos(diaDaSemana)}</div>
+      <div className="content">
+        {exibirGastos(currentTab)}
+      </div>
     </div>
   );
 };
