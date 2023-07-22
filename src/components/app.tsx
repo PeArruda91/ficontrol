@@ -1,9 +1,9 @@
 "use client"
 
+
 import React, { useState, useEffect } from "react";
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap-icons/font/bootstrap-icons.css';
-import { PieChart, Pie, Cell, Legend } from "recharts";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 type Gasto = {
   descricao: string;
@@ -14,20 +14,23 @@ type Gasto = {
 type GastosPorDia = Record<string, Gasto[]>;
 
 const App: React.FC = () => {
+  // State
   const [gastos, setGastos] = useState<GastosPorDia>({
     "Total": [],
   });
-
   const [currentTab, setCurrentTab] = useState<string>("Total");
   const [initialBudget, setInitialBudget] = useState<number | null>(null);
   const [showInitialBudgetModal, setShowInitialBudgetModal] = useState(true);
 
+  // Effects
   useEffect(() => {
+    // Carrega os gastos salvos no localStorage ao carregar a página
     const data = localStorage.getItem("gastos");
     if (data) {
       setGastos(JSON.parse(data) as GastosPorDia);
     }
 
+    // Carrega o orçamento inicial do localStorage
     const budgetData = localStorage.getItem("initialBudget");
     if (budgetData) {
       setInitialBudget(Number(budgetData));
@@ -37,6 +40,12 @@ const App: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    // Salva os gastos no localStorage sempre que houver uma alteração
+    localStorage.setItem("gastos", JSON.stringify(gastos));
+  }, [gastos]);
+
+  // Funções
   const adicionarGasto = (descricao: string, valor: number) => {
     if (valor <= 0) {
       alert("O valor do gasto deve ser maior que zero.");
@@ -56,22 +65,6 @@ const App: React.FC = () => {
     }
   };
 
-  const exibirGastos = (tab: string) => {
-    const gastosExibir = tab === "Total" ? gastos[tab].slice(1) : gastos[tab];
-    return (
-      <ul>
-        {gastosExibir.map((gasto, index) => (
-          <li key={index} className={getColorClass(index)}>
-            {gasto.descricao} - {gasto.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} - {gasto.data}
-            <button onClick={() => deletarGasto(tab, index)} className="btn btn-sm btn-danger ml-2">
-              <i className="bi bi-x"></i>
-            </button>
-          </li>
-        ))}
-      </ul>
-    );
-  };
-
   const deletarGasto = (tab: string, index: number) => {
     setGastos((prevGastos) => {
       const updatedGastos = [...prevGastos[tab]];
@@ -84,27 +77,19 @@ const App: React.FC = () => {
     });
   };
 
-  useEffect(() => {
-    localStorage.setItem("gastos", JSON.stringify(gastos));
-  }, [gastos]);
-
   const handleSaveInitialBudget = (budget: number) => {
     if (budget <= 0) {
       alert("O orçamento deve ser maior que zero.");
     } else {
       let previousBudget = 0;
-
       const budgetData = localStorage.getItem("initialBudget");
       if (budgetData) {
         previousBudget = Number(budgetData);
       }
-
       const newBudget = previousBudget + budget;
 
       localStorage.setItem("initialBudget", newBudget.toString());
-
       setInitialBudget(newBudget);
-
       setShowInitialBudgetModal(false);
 
       setGastos((prevGastos) => ({
@@ -125,6 +110,33 @@ const App: React.FC = () => {
     setShowInitialBudgetModal(true);
   };
 
+  const calcularTotalGasto = () => {
+    let total = 0;
+    Object.values(gastos).forEach((gastosPorOpcao) => {
+      gastosPorOpcao.forEach((gasto) => {
+        total += gasto.valor;
+      });
+    });
+    return total;
+  };
+
+  // Helpers
+  const exibirGastos = (tab: string) => {
+    const gastosExibir = tab === "Total" ? gastos[tab].slice(1) : gastos[tab];
+    return (
+      <ul>
+        {gastosExibir.map((gasto, index) => (
+          <li key={index} className={getColorClass(index)}>
+            {gasto.descricao} - {gasto.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} - {gasto.data}
+            <button onClick={() => deletarGasto(tab, index)} className="btn btn-sm btn-danger ml-2">
+              <i className="bi bi-x"></i>
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   const getColorClass = (index: number): string => {
     const colors = ["bg-primary", "bg-secondary", "bg-success", "bg-danger", "bg-warning", "bg-info", "bg-dark"];
     return colors[index % colors.length];
@@ -140,52 +152,6 @@ const App: React.FC = () => {
     });
     return colorsMap;
   };
-
-  const calcularTotalGasto = () => {
-    let total = 0;
-    Object.values(gastos).forEach((gastosPorOpcao) => {
-      gastosPorOpcao.forEach((gasto) => {
-        total += gasto.valor;
-      });
-    });
-    return total;
-  };
-
-  const PieChartComponent = () => {
-    const colorsMap = getColorsMap();
-    const totalGasto = calcularTotalGasto();
-    const orcamentoRestante = initialBudget !== null ? initialBudget - totalGasto : 0;
-    const data = [
-      { name: "Orçamento Restante", value: orcamentoRestante, fill: colorsMap["Orçamento Restante"] },
-      ...Object.entries(gastos)
-        .filter(([tab]) => tab !== "Total")
-        .map(([tab, gastos]) => ({
-          name: tab,
-          value: gastos.reduce((total, gasto) => total + gasto.valor, 0),
-          fill: colorsMap[tab],
-        })),
-    ];
-
-    return (
-      <PieChart width={400} height={400}>
-        <Pie
-          dataKey="value"
-          isAnimationActive={false}
-          data={data}
-          cx="50%"
-          cy="50%"
-          outerRadius={80}
-          label={(entry) => entry.name}
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.fill} />
-          ))}
-        </Pie>
-        <Legend />
-      </PieChart>
-    );
-  };
-
 
   return (
     <div className="container text-center">
@@ -267,31 +233,14 @@ const App: React.FC = () => {
           </div>
         </div>
       </form>
-     
+
       <ul className="nav nav-tabs justify-content-center mt-4">
         <li className="nav-item">
           <button className={`nav-link${currentTab === "Total" ? ' active' : ''}`} onClick={() => setCurrentTab("Total")}>
             Suas Finanças
           </button>
-        </li>
-        <li className="nav-item">
-          <button className={`nav-link${currentTab === "Gráfico de Gastos" ? ' active' : ''}`} onClick={() => setCurrentTab("Gráfico de Gastos")}>
-            Gráfico de Gastos
-          </button>
-        </li>
+        </li>        
       </ul>
-
-      {currentTab === "Total" && (
-        <div className="content mt-4">
-          {exibirGastos(currentTab)}
-        </div>
-      )}
-
-      {currentTab === "Gráfico de Gastos" && (
-        <div className="pie-chart mt-4">
-          <PieChartComponent />
-        </div>
-      )}
     </div>
   );
 };
