@@ -90,7 +90,6 @@ const App: React.FC = () => {
         role="dialog"
         style={{ display: showInitialBudgetModal ? "block" : "none" }}
       >
-        {/* Modal content goes here */}
       </div>
 
       <form
@@ -101,7 +100,6 @@ const App: React.FC = () => {
           form.reset();
         }}
       >
-        {/* Form content goes here */}
       </form>
       <ul className="nav nav-tabs">
         <li className="nav-item">
